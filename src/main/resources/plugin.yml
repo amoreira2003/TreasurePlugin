@@ -1,0 +1,9 @@
+name: cTeamTreasures
+version: '${project.version}'
+main: com.cteam.main
+api-version: 1.19
+authors: [ amoreira2003 ]
+commands:
+  test:
+  killent:
+  cancel:
