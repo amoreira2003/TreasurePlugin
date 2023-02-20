@@ -1,7 +1,9 @@
 package com.cteam.methods;
 
+import com.cteam.events.EventStage;
 import com.cteam.main;
 import com.cteam.tasks.TreasureEventTask;
+import com.cteam.yamls.Config;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -22,13 +24,13 @@ import org.bukkit.util.Vector;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Set;
 
 public class EventManager {
 
-    public HashMap<Player, TreasureEvent> onEvent = new HashMap<>();
-    public int runningEvents = 0;
-
-
+     HashMap<Player, TreasureEvent> onEvent = new HashMap<>();
+     public ArrayList<Block> protectedBlocks = new ArrayList<Block>();
+    public ArrayList<LivingEntity> protectedEnemies = new ArrayList<LivingEntity>();
 
     boolean addPlayerAsChallenger(TreasureEvent treasureEvent, Player challenger) {
       if(isPlayerChallenging(challenger)) return false;
@@ -37,7 +39,17 @@ public class EventManager {
     }
 
 
-    boolean isPlayerChallenging(Player challenger) {
+
+
+    public Set<Player> getPlayersInChallenge() {
+        return onEvent.keySet();
+    }
+    public TreasureEvent getTreasureEvent(Player challenger) {
+        return onEvent.get(challenger);
+    }
+
+
+    public boolean isPlayerChallenging(Player challenger) {
         return onEvent.containsKey(challenger);
     }
 
@@ -47,7 +59,7 @@ public class EventManager {
         return true;
     }
 
-    void buildCage(Material cageMaterial, TreasureEvent event, Vector vector) {
+    void buildCage(TreasureEvent event, Vector vector) {
         Player challenger = event.getChallenger();
         ArrayList<Block> cellsBars = event.getCageBlocks();
         int xSize = vector.getBlockX();
@@ -55,10 +67,11 @@ public class EventManager {
         int ySize = vector.getBlockZ();
         for(int x=-xSize; x <= xSize; x++) {
             for(int z=-zSize;z <=zSize;z++) {
-                for(int y=0;y < ySize;y++) {
+                for(int y=-10;y < ySize;y++) {
                     Block block = new Location(challenger.getWorld(),challenger.getLocation().getBlockX()+x,challenger.getLocation().getBlockY()+y,challenger.getLocation().getBlockZ()+z).getBlock();
+                    protectedBlocks.add(block);
                     cellsBars.add(block);
-                    if(x >= xSize || z >= zSize || x <= -xSize || z<= -zSize) block.setType(cageMaterial);
+                    if(x >= xSize || z >= zSize || x <= -xSize || z<= -zSize || y == -10) if(!block.getType().isSolid()) block.setType(Material.IRON_BARS);
 
                 }
             }
@@ -69,7 +82,9 @@ public class EventManager {
     ArmorStand spawnArmorStand(Player challenger) {
         Location armorStandLocation = challenger.getLocation();
         ArmorStand armorStand = challenger.getWorld().spawn(armorStandLocation, ArmorStand.class);
-        ItemStack skull = Utils.getCustomSkull("eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZWRjMzZjOWNiNTBhNTI3YWE1NTYwN2EwZGY3MTg1YWQyMGFhYmFhOTAzZThkOWFiZmM3ODI2MDcwNTU0MGRlZiJ9fX0=");
+
+        Config config = new Config();
+        ItemStack skull = Utils.getCustomSkull(config.getConfigYAML().getString("notAbleToLoot"));
         armorStand.setSmall(true);
         armorStand.setGravity(false);
         armorStand.getEquipment().setHelmet(skull);
@@ -81,36 +96,12 @@ public class EventManager {
 
 
 
-
     public void startEvent(Player challenger) {
         if(isPlayerChallenging(challenger)) return;
         ArmorStand armorStand = spawnArmorStand(challenger);
-        ArrayList<Block> cellsBars = new ArrayList<>();
-        ArrayList<LivingEntity> spawnEntities = new ArrayList<>();
-        TreasureEvent treasureEvent = new TreasureEvent(challenger,cellsBars,spawnEntities,armorStand);
+        TreasureEvent treasureEvent = new TreasureEvent(challenger,armorStand, 5);
         Vector cageSize = new Vector(10,10,10);
-        buildCage(Material.IRON_BARS,treasureEvent,cageSize);
-
-        for(int i = 0; i < 2; i++) {
-            spawnEntities.add(challenger.getWorld().spawn(challenger.getLocation(), Zombie.class));
-        }
-
-        for(LivingEntity i : spawnEntities) {
-            if(i instanceof Zombie) {
-                Zombie z = (Zombie) i;
-                z.getEquipment().clear();
-                z.setLootTable(LootTables.EMPTY.getLootTable());
-                z.setAdult();
-                z.addPotionEffect(new PotionEffect(PotionEffectType.FIRE_RESISTANCE, 10000, 10000));
-            }
-
-            i.setCanPickupItems(false);
-            i.setRemoveWhenFarAway(false);
-            i.setVisualFire(false);
-            i.setCustomName(challenger.getName() +"'s Treasure");
-            i.setGlowing(true);
-            i.setAI(true);
-        }
+        buildCage(treasureEvent,cageSize);
 
         BukkitTask event  = new BukkitRunnable() {
 
@@ -119,12 +110,19 @@ public class EventManager {
             boolean triggered = false;
             @Override
             public void run() {
-
-                if(!triggered) armorStand.setCustomName(((double) x/20)+"s");
-                if(!Utils.checkIfHordeAlive(spawnEntities) && !triggered || !isPlayerChallenging(challenger)) {
-                    triggered= true;
-                    treasureEvent.startLootingPhase();
+               if(armorStand.getCustomName() != "Horde " + treasureEvent.getCurrentHorde() +"/" + treasureEvent.getMaxHorde() && treasureEvent.getEventPhase() == EventStage.STARTED) armorStand.setCustomName("Horde " + treasureEvent.getCurrentHorde() +"/" + treasureEvent.getMaxHorde());
+               if(treasureEvent.getEventPhase() == EventStage.WAITING) {
+                   if(treasureEvent.currentHorde == 0) {
+                       treasureEvent.getFloatingChest().setCustomName(ChatColor.GREEN + "Starting Challenge in " + treasureEvent.secondsUntilNextHorde +"s");
+                   } else {
+                       treasureEvent.getFloatingChest().setCustomName(ChatColor.RED + "Next Horde in " + treasureEvent.secondsUntilNextHorde +"s");
+                   }
+               }
+                if(!Utils.checkIfHordeAlive(treasureEvent.getEnemies())  && treasureEvent.getEventPhase() == EventStage.STARTED) {
+                    treasureEvent.nextPhase();
                 }
+
+
                 treasureEvent.rotateFloatingChest(constHeight,x);
                 if(!isPlayerChallenging(challenger)) treasureEvent.endEvent();
                 x++;

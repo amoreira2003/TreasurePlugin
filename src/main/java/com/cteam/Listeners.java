@@ -1,15 +1,19 @@
 package com.cteam;
 
+import com.cteam.yamls.Config;
 import com.sun.tools.javac.jvm.Items;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Sound;
+import org.bukkit.block.Block;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
+import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.player.PlayerInteractAtEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.EquipmentSlot;
@@ -29,10 +33,6 @@ public class Listeners implements Listener {
         if(interactedBook == null || interactedBook.getType().isAir()) return;
         if(interactedBook.getType() != Material.WRITTEN_BOOK) return;
         if(!interactedBook.getItemMeta().getDisplayName().equalsIgnoreCase("Treasure Book")) return;
-        e.setCancelled(true);
-
-
-
         PersistentDataContainer dataHolder =interactedBook.getItemMeta().getPersistentDataContainer();
         NamespacedKey treasurePluginSpaceKey = new NamespacedKey(main.plugin, "TREASUREBOOKS");
         int[] cords = dataHolder.get(treasurePluginSpaceKey, PersistentDataType.INTEGER_ARRAY);
@@ -41,7 +41,7 @@ public class Listeners implements Listener {
         int Z = cords[2];
         p.sendMessage(Arrays.toString(cords));
         if(p.getLocation().getBlockX() != X && p.getLocation().getBlockZ() != Z) return;
-        if(main.plugin.eventManager.onEvent.containsKey(p)) {
+        if(main.plugin.eventManager.isPlayerChallenging(p)) {
             p.sendMessage("\n"+ ChatColor.RED +"You are already doing a challenge \n ");
             return;
         }
@@ -56,11 +56,21 @@ public class Listeners implements Listener {
 
 
     @EventHandler
+    public void breakBlock(BlockBreakEvent e) {
+        Block b = e.getBlock();
+        if(main.plugin.eventManager.protectedBlocks.contains(b)) {
+            e.setCancelled(true);
+        }
+    }
+
+
+    @EventHandler
     public void interactEntity(PlayerInteractAtEntityEvent e) {
         Player p = e.getPlayer();
         Entity entity = e.getRightClicked();
-        if(entity.getCustomName().equalsIgnoreCase("Right Click to Claim Your Prize")) {
-            if(main.plugin.eventManager.onEvent.containsKey(p)) main.plugin.eventManager.onEvent.remove(p);
+        YamlConfiguration yamlConfiguration = new Config().getConfigYAML();
+        if(entity.getCustomName().equalsIgnoreCase(yamlConfiguration.getString("challengeWinChestName"))) {
+            if(main.plugin.eventManager.isPlayerChallenging(p)) main.plugin.eventManager.getTreasureEvent(p).startEndingPhase();
             p.getInventory().addItem(new ItemStack(Material.DIAMOND));
             p.playSound(p.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP,1f,1f);
             p.sendMessage("hmmm Diamonds...");
