@@ -4,10 +4,13 @@ import com.sun.tools.javac.jvm.Items;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
+import org.bukkit.Sound;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
+import org.bukkit.event.player.PlayerInteractAtEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
@@ -50,6 +53,21 @@ public class Listeners implements Listener {
 
 
     }
+
+
+    @EventHandler
+    public void interactEntity(PlayerInteractAtEntityEvent e) {
+        Player p = e.getPlayer();
+        Entity entity = e.getRightClicked();
+        if(entity.getCustomName().equalsIgnoreCase("Right Click to Claim Your Prize")) {
+            if(main.plugin.eventManager.onEvent.containsKey(p)) main.plugin.eventManager.onEvent.remove(p);
+            p.getInventory().addItem(new ItemStack(Material.DIAMOND));
+            p.playSound(p.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP,1f,1f);
+            p.sendMessage("hmmm Diamonds...");
+            entity.remove();
+        }
+    }
+
 
 
 }

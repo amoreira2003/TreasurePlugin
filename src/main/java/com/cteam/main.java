@@ -32,7 +32,7 @@ public final class main extends JavaPlugin implements Listener {
 
    public static main plugin;
 
-   EventManager eventManager;
+   public EventManager eventManager;
 
     @Override
     public void onEnable() {
@@ -41,7 +41,6 @@ public final class main extends JavaPlugin implements Listener {
         Bukkit.getPluginManager().registerEvents(new Listeners(),this);
         getCommand("killent").setExecutor(new KillEnt());
         getCommand("cancel").setExecutor(new CancelEvent());
-        NamespacedKey treasurePluginSpaceKey = new NamespacedKey(this, "TREASUREBOOKS");
         eventManager = new EventManager();
     }
 
@@ -49,7 +48,7 @@ public final class main extends JavaPlugin implements Listener {
     public void onDisable() {
         for(Player player : eventManager.onEvent.keySet()) {
             TreasureEvent treasureEvent = eventManager.onEvent.get(player);
-            treasureEvent.clearStructures(true);
+            treasureEvent.endEvent();
 
         }
         Bukkit.getLogger().info("Treasure Plugin Disabled");
@@ -64,18 +63,6 @@ public final class main extends JavaPlugin implements Listener {
     }
 
 
-    @EventHandler
-    public void interactEntity(PlayerInteractAtEntityEvent e) {
-        Player p = e.getPlayer();
-        Entity entity = e.getRightClicked();
-        if(entity.getCustomName().equalsIgnoreCase("Right Click to Claim Your Prize")) {
-           if(main.plugin.eventManager.onEvent.containsKey(p)) main.plugin.eventManager.onEvent.remove(p);
-           p.getInventory().addItem(new ItemStack(Material.DIAMOND));
-           p.playSound(p.getLocation(),Sound.ENTITY_EXPERIENCE_ORB_PICKUP,1f,1f);
-           p.sendMessage("hmmm Diamonds...");
-            entity.remove();
-        }
-    }
 
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent e) {

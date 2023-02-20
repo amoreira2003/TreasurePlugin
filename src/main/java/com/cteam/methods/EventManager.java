@@ -1,6 +1,7 @@
 package com.cteam.methods;
 
 import com.cteam.main;
+import com.cteam.tasks.TreasureEventTask;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -28,16 +29,23 @@ public class EventManager {
     public int runningEvents = 0;
 
 
-    boolean checkIfHordeAlive(ArrayList<LivingEntity> zombieArrayList) {
-        int aliveZombies = 0;
-        for(LivingEntity LivingEntity : zombieArrayList) {
-            if(LivingEntity.getHealth() > 0) {
-                aliveZombies++;
-            }
-        }
-        return aliveZombies > 0;
+
+    boolean addPlayerAsChallenger(TreasureEvent treasureEvent, Player challenger) {
+      if(isPlayerChallenging(challenger)) return false;
+      onEvent.put(challenger, treasureEvent);
+      return true;
     }
 
+
+    boolean isPlayerChallenging(Player challenger) {
+        return onEvent.containsKey(challenger);
+    }
+
+    public boolean removePlayerAsChallenger(Player challenger) {
+        if (!isPlayerChallenging(challenger)) return false;
+        onEvent.remove(challenger);
+        return true;
+    }
 
     void buildCage(Material cageMaterial, TreasureEvent event, Vector vector) {
         Player challenger = event.getChallenger();
@@ -61,8 +69,9 @@ public class EventManager {
     ArmorStand spawnArmorStand(Player challenger) {
         Location armorStandLocation = challenger.getLocation();
         ArmorStand armorStand = challenger.getWorld().spawn(armorStandLocation, ArmorStand.class);
-        ItemStack skull = Utils.getCustomSkull("eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvOTcxNDUxNmU2NTY1YjgxMmZmNWIzOWVhMzljZDI4N2FmZWM4ZmNjMDZkOGYzMDUyMWNjZDhmMWI0Y2JmZGM2YiJ9fX0=");
+        ItemStack skull = Utils.getCustomSkull("eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZWRjMzZjOWNiNTBhNTI3YWE1NTYwN2EwZGY3MTg1YWQyMGFhYmFhOTAzZThkOWFiZmM3ODI2MDcwNTU0MGRlZiJ9fX0=");
         armorStand.setSmall(true);
+        armorStand.setGravity(false);
         armorStand.getEquipment().setHelmet(skull);
         armorStand.addEquipmentLock(EquipmentSlot.HEAD, ArmorStand.LockType.REMOVING_OR_CHANGING);
         armorStand.setVisible(false);
@@ -74,7 +83,7 @@ public class EventManager {
 
 
     public void startEvent(Player challenger) {
-        if(onEvent.containsKey(challenger)) return;
+        if(isPlayerChallenging(challenger)) return;
         ArmorStand armorStand = spawnArmorStand(challenger);
         ArrayList<Block> cellsBars = new ArrayList<>();
         ArrayList<LivingEntity> spawnEntities = new ArrayList<>();
@@ -82,7 +91,7 @@ public class EventManager {
         Vector cageSize = new Vector(10,10,10);
         buildCage(Material.IRON_BARS,treasureEvent,cageSize);
 
-        for(int i = 0; i < 30; i++) {
+        for(int i = 0; i < 2; i++) {
             spawnEntities.add(challenger.getWorld().spawn(challenger.getLocation(), Zombie.class));
         }
 
@@ -103,30 +112,25 @@ public class EventManager {
             i.setAI(true);
         }
 
-        BukkitTask event  =  new BukkitRunnable() {
+        BukkitTask event  = new BukkitRunnable() {
+
+            int x = 0;
             double constHeight = armorStand.getLocation().getY();
             boolean triggered = false;
-            int x = 0;
             @Override
             public void run() {
-                if(!triggered) armorStand.setCustomName(((double) x/20)+"s");
-                if(!checkIfHordeAlive(spawnEntities) && !triggered || !onEvent.containsKey(challenger)) {
-                    triggered= true;
-                    challenger.playSound(challenger.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP,1f,1f);
-                    challenger.sendMessage(ChatColor.GREEN + "Challenge Won");
-                    armorStand.setCustomName("Right Click to Claim Your Prize");
-                    treasureEvent.clearStructures(false);
-                }
-                Location newLocation =  armorStand.getLocation();
-                newLocation.setYaw(newLocation.getYaw()+12);
-                newLocation.setY(constHeight + (Math.sin((float) x * 0.2) * 0.3));
-                armorStand.teleport(newLocation);
-                if(!onEvent.containsKey(challenger)) treasureEvent.clearStructures(true);
-                x++;
 
+                if(!triggered) armorStand.setCustomName(((double) x/20)+"s");
+                if(!Utils.checkIfHordeAlive(spawnEntities) && !triggered || !isPlayerChallenging(challenger)) {
+                    triggered= true;
+                    treasureEvent.startLootingPhase();
+                }
+                treasureEvent.rotateFloatingChest(constHeight,x);
+                if(!isPlayerChallenging(challenger)) treasureEvent.endEvent();
+                x++;
             }
         }.runTaskTimer(main.plugin, 0, 1);
         treasureEvent.setEventTask(event);
-        onEvent.put(challenger, treasureEvent);
+        addPlayerAsChallenger(treasureEvent,challenger);
     }
 }

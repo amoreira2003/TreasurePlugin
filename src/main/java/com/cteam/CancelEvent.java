@@ -12,9 +12,8 @@ public class CancelEvent implements CommandExecutor {
 
         if (sender instanceof Player) {
             Player p = (Player) sender;
-           if (!main.plugin.eventManager.onEvent.containsKey(p)) return false;
-            main.plugin.eventManager.onEvent.remove(p);
-            p.sendMessage("Event Cancelled");
+           if (!main.plugin.eventManager.removePlayerAsChallenger(p)) p.sendMessage("Event was not cancelled");
+            p.sendMessage("Event was cancelled");
             return true;
         }
         return false;
