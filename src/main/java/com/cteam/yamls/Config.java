@@ -35,11 +35,14 @@ public class Config {
         configYAML = YamlConfiguration.loadConfiguration(configFile);
         configYAML.options().setHeader(Arrays.asList(header));
         String[] randomNames = {"StampyLongHead", "CaptainSparklez", "PewDiePie", "Skeppy", "Dream", "Technoblade", "Grian", "TommyInnit", "Tubbo", "WilburSoot"};
-        checkField("floatingChest/textures/notAbleToLoot", "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZWRjMzZjOWNiNTBhNTI3YWE1NTYwN2EwZGY3MTg1YWQyMGFhYmFhOTAzZThkOWFiZmM3ODI2MDcwNTU0MGRlZiJ9fX0=");
+        checkField("notAbleToLoot", "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZWRjMzZjOWNiNTBhNTI3YWE1NTYwN2EwZGY3MTg1YWQyMGFhYmFhOTAzZThkOWFiZmM3ODI2MDcwNTU0MGRlZiJ9fX0=");
         checkField("challengeWin", ChatColor.GREEN + "Challenge Won");
         checkField("challengeWinChestName", "Right Click to Claim Your Prize");
         checkField("ableToLoot", "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvOTcxNDUxNmU2NTY1YjgxMmZmNWIzOWVhMzljZDI4N2FmZWM4ZmNjMDZkOGYzMDUyMWNjZDhmMWI0Y2JmZGM2YiJ9fX0=");
         checkField("enemiesListName", randomNames);
+        checkField("hordeCountText","Horde {current_horde}/{max_horde}");
+        checkField("startingChallengeText",ChatColor.GREEN + "Starting Challenge in {seconds_until_horde}s");
+        checkField("nextHordeText",ChatColor.RED + "Next Horde in {seconds_until_horde}s");
         saveConfig();
 
 

@@ -9,6 +9,7 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.block.Block;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
@@ -102,20 +103,23 @@ public class EventManager {
         TreasureEvent treasureEvent = new TreasureEvent(challenger,armorStand, 5);
         Vector cageSize = new Vector(10,10,10);
         buildCage(treasureEvent,cageSize);
+        YamlConfiguration yamlConfiguration = new Config().getConfigYAML();
+
 
         BukkitTask event  = new BukkitRunnable() {
 
             int x = 0;
             double constHeight = armorStand.getLocation().getY();
-            boolean triggered = false;
+
             @Override
             public void run() {
-               if(armorStand.getCustomName() != "Horde " + treasureEvent.getCurrentHorde() +"/" + treasureEvent.getMaxHorde() && treasureEvent.getEventPhase() == EventStage.STARTED) armorStand.setCustomName("Horde " + treasureEvent.getCurrentHorde() +"/" + treasureEvent.getMaxHorde());
+                String hordeText = yamlConfiguration.getString("hordeCountText").replace("{current_horde}",String.valueOf(treasureEvent.getCurrentHorde())).replace("{max_horde}",String.valueOf(treasureEvent.getMaxHorde()));
+               if(armorStand.getCustomName() != hordeText && treasureEvent.getEventPhase() == EventStage.STARTED) armorStand.setCustomName(hordeText);
                if(treasureEvent.getEventPhase() == EventStage.WAITING) {
                    if(treasureEvent.currentHorde == 0) {
-                       treasureEvent.getFloatingChest().setCustomName(ChatColor.GREEN + "Starting Challenge in " + treasureEvent.secondsUntilNextHorde +"s");
+                       treasureEvent.getFloatingChest().setCustomName(yamlConfiguration.getString("startingChallengeText").replace("{seconds_until_horde}",String.valueOf(treasureEvent.secondsUntilNextHorde)));
                    } else {
-                       treasureEvent.getFloatingChest().setCustomName(ChatColor.RED + "Next Horde in " + treasureEvent.secondsUntilNextHorde +"s");
+                       treasureEvent.getFloatingChest().setCustomName(yamlConfiguration.getString("nextHordeText").replace("{seconds_until_horde}", String.valueOf(treasureEvent.secondsUntilNextHorde)));
                    }
                }
                 if(!Utils.checkIfHordeAlive(treasureEvent.getEnemies())  && treasureEvent.getEventPhase() == EventStage.STARTED) {
