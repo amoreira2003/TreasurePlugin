@@ -1,43 +1,50 @@
 package com.cteam.methods;
 
+import com.cteam.TreasureRarity;
+import com.cteam.constructors.TreasureEnemy;
 import com.cteam.events.EventStage;
 import com.cteam.main;
 import com.cteam.yamls.Config;
-import org.bukkit.ChatColor;
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.block.Block;
 import org.bukkit.configuration.file.YamlConfiguration;
-import org.bukkit.entity.ArmorStand;
-import org.bukkit.entity.LivingEntity;
-import org.bukkit.entity.Player;
-import org.bukkit.entity.Zombie;
+import org.bukkit.entity.*;
+import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.InventoryHolder;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.loot.LootTables;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.Vector;
-import org.yaml.snakeyaml.Yaml;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 
 public class TreasureEvent {
 
     private Player challenger;
 
-     private ArmorStand floatingChest;
+    private Inventory lootInventory;
 
-     private EventStage eventPhase;
+    private ArmorStand floatingChest;
 
-     private ArrayList<Block> cageBlocks;
+    private EventStage eventPhase;
 
-     private ArrayList<LivingEntity> enemies;
+    private ArrayList<Block> cageBlocks;
 
-     private BukkitTask eventTask;
+    private ArrayList<LivingEntity> enemies;
+
+    private BukkitTask eventTask;
+
+    private TreasureRarity treasureRarity;
+
 
     int currentHorde = 0;
     int maxHorde = 0;
@@ -60,6 +67,13 @@ public class TreasureEvent {
         this.floatingChest = floatingChest;
     }
 
+    public TreasureRarity getTreasureRarity() {
+        return treasureRarity;
+    }
+
+    public void setTreasureRarity(TreasureRarity treasureRarity) {
+        this.treasureRarity = treasureRarity;
+    }
 
     public void setChallenger(Player challenger) {
         this.challenger = challenger;
@@ -86,27 +100,35 @@ public class TreasureEvent {
     }
 
     public void clearStructures() {
-        for(Block block : cageBlocks) {
+        for (Block block : cageBlocks) {
             main.plugin.eventManager.protectedBlocks.remove(block);
-            if(block.getType() == Material.IRON_BARS) block.setType(Material.AIR);
+            if (block.getType() == Material.IRON_BARS) block.setType(Material.AIR);
         }
 
-        for(LivingEntity livingEntity : enemies) {
+        for (LivingEntity livingEntity : enemies) {
             livingEntity.remove();
         }
     }
 
-    TreasureEvent(Player player, ArmorStand floatingChest,int maxHorde) {
+    TreasureEvent(Player player, ArmorStand floatingChest, int maxHorde) {
         challenger = player;
-        cageBlocks = new ArrayList<Block>();;
-        this.enemies = new ArrayList<LivingEntity>();;
+        cageBlocks = new ArrayList<>();;
+        this.enemies = new ArrayList<>();;
         this.maxHorde = maxHorde;
         this.floatingChest = floatingChest;
         eventPhase = EventStage.STARTED;
 
     }
 
-    TreasureEvent(Player player, ArrayList<Block> cageBlockList, ArrayList<LivingEntity> enemies, ArmorStand floatingChest, BukkitTask eventTask,int maxHorde) {
+    public Inventory getLootInventory() {
+        return lootInventory;
+    }
+
+    public void setLootInventory(Inventory lootInventory) {
+        this.lootInventory = lootInventory;
+    }
+
+    TreasureEvent(Player player, ArrayList<Block> cageBlockList, ArrayList<LivingEntity> enemies, ArmorStand floatingChest, BukkitTask eventTask, int maxHorde) {
         challenger = player;
         cageBlocks = cageBlockList;
         this.enemies = enemies;
@@ -120,10 +142,18 @@ public class TreasureEvent {
     public void startLootingPhase() {
         Config config = new Config();
         YamlConfiguration yamlConfiguration = config.getConfigYAML();
-        challenger.playSound(challenger.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP,1f,1f);
-        challenger.sendMessage(yamlConfiguration.getString("challengeWin"));
-        floatingChest.setCustomName(yamlConfiguration.getString("challengeWinChestName"));
-        floatingChest.getEquipment().setHelmet(Utils.getCustomSkull(yamlConfiguration.getString("ableToLoot")));
+        challenger.playSound(challenger.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1f, 1f);
+        challenger.sendMessage(yamlConfiguration.getString("chatMessages.challengeWin"));
+        floatingChest.setCustomName(yamlConfiguration.getString("displayText.challengeWinChestName"));
+        floatingChest.getEquipment().setHelmet(Utils.getCustomSkull(yamlConfiguration.getString("skins.ableToLoot")));
+        List<Map<?, ?>> listLootDropSerialized = yamlConfiguration.getMapList("challenges."+ treasureRarity.name().toLowerCase()+".lootDrop");
+        lootInventory = Bukkit.createInventory(challenger,54, "Take your reward");
+        for(Map<?,?> lootDropSerialized : listLootDropSerialized) {
+            Map<String,Object> lootDropUnserialized = (Map<String, Object>) lootDropSerialized;
+            ItemStack item = ItemStack.deserialize(lootDropUnserialized);
+            lootInventory.addItem(item);
+        }
+
         clearStructures();
         setEventPhase(EventStage.LOOTING);
     }
@@ -152,12 +182,19 @@ public class TreasureEvent {
     void spawnEnemies(int currentHorde) {
         YamlConfiguration yamlConfiguration = new Config().getConfigYAML();
         enemies.clear();
-        for(int i = 0; i < 5 * currentHorde; i++) {
-            enemies.add(challenger.getWorld().spawn(challenger.getLocation(), Zombie.class));
+
+        for(Map<?,?> enemyBeforeDeserialization : yamlConfiguration.getMapList("challenges." + treasureRarity.name().toLowerCase() + ".enemies")) {
+            challenger.sendMessage(enemyBeforeDeserialization.toString());
+            Map<String, Object> enemyMapOPP = (Map<String, Object>) enemyBeforeDeserialization;
+            TreasureEnemy enemy = TreasureEnemy.deserialize(enemyMapOPP);
+            Location spawnLocation = floatingChest.getLocation().add(0,3,0);
+            for(int i = 0; i < enemy.getHordeNumber() * currentHorde; i++) {
+                enemies.add((LivingEntity) challenger.getWorld().spawnEntity(spawnLocation, enemy.getEnemyType()));
+            }
         }
 
-        for(LivingEntity i : enemies) {
-            if(i instanceof Zombie) {
+        for (LivingEntity i : enemies) {
+            if (i instanceof Zombie) {
                 Zombie z = (Zombie) i;
                 z.getEquipment().clear();
                 z.setLootTable(LootTables.EMPTY.getLootTable());
@@ -168,41 +205,46 @@ public class TreasureEvent {
             i.setCanPickupItems(false);
             i.setRemoveWhenFarAway(false);
             i.setVisualFire(false);
-            ArrayList<String> names = (ArrayList<String>) yamlConfiguration.get("enemiesListName");
-            String randomName = names.get(new Random().nextInt(names.size()));
-            i.setCustomName(randomName);
             i.setGlowing(true);
             i.setAI(true);
+            if (!yamlConfiguration.getBoolean("extra.useCustomNameForEnemies")) continue;
+            ArrayList<String> names = (ArrayList<String>) yamlConfiguration.get("extra.enemiesListName");
+            String randomName = names.get(new Random().nextInt(names.size()));
+            i.setCustomName(randomName);
+
         }
     }
-    public void nextPhase() {
 
-        if(currentHorde >= maxHorde)  {
+    public void nextPhase() {
+        YamlConfiguration yamlConfiguration = new Config().getConfigYAML();
+        if (currentHorde >= maxHorde) {
             startLootingPhase();
             return;
         }
 
-        startHorde(10);
+        startHorde(yamlConfiguration.getInt("challenges." + treasureRarity.name().toLowerCase()+ ".hordeWait"));
 
     }
 
 
     public void startHorde(int delay) {
-        challenger.sendMessage(ChatColor.GREEN +""+ currentHorde + " of " + maxHorde + " completed");
+        YamlConfiguration yamlConfiguration = new Config().getConfigYAML();
+        challenger.sendMessage(yamlConfiguration.getString("chatMessages.hordeComplete").replace("{current_horde}", String.valueOf(currentHorde)).replace("{max_horde}", String.valueOf(maxHorde)));
         setEventPhase(EventStage.WAITING);
         new BukkitRunnable() {
             int x = 0;
+
             @Override
             public void run() {
                 x++;
                 secondsUntilNextHorde = delay - x;
 
-                if(secondsUntilNextHorde <= 0) {
-                    if(!main.plugin.eventManager.isPlayerChallenging(challenger)) {
+                if (secondsUntilNextHorde <= 0) {
+                    if (!main.plugin.eventManager.isPlayerChallenging(challenger)) {
                         cancel();
                         return;
                     }
-                    setCurrentHorde(currentHorde+1);
+                    setCurrentHorde(currentHorde + 1);
                     spawnEnemies(currentHorde);
                     setEventPhase(EventStage.STARTED);
                     cancel();
@@ -212,24 +254,26 @@ public class TreasureEvent {
     }
 
 
-    public void rotateFloatingChest(double constHeight,  int x) {
-        Location newLocation =  floatingChest.getLocation();
+    public void rotateFloatingChest(double constHeight, int x) {
+        YamlConfiguration yamlConfiguration = new Config().getConfigYAML();
+        Location newLocation = floatingChest.getLocation();
         Vector toPlayerDirection = challenger.getLocation().toVector().subtract(newLocation.toVector());
-        if(eventPhase == EventStage.LOOTING) {
+        if (eventPhase == EventStage.LOOTING) {
             constHeight = challenger.getLocation().getY();
             newLocation.setDirection(toPlayerDirection);
-            if(newLocation.toVector().distance(challenger.getLocation().toVector()) > 2.5) {
-                newLocation.add(toPlayerDirection.normalize().multiply(0.5f));
+            if (newLocation.toVector().distance(challenger.getLocation().toVector()) > yamlConfiguration.getDouble("animation.followDistance")) {
+                newLocation.add(toPlayerDirection.normalize().multiply(yamlConfiguration.getDouble("animation.followSpeed")));
             }
         } else {
-            newLocation.setYaw(newLocation.getYaw()+8);
+            newLocation.setYaw( newLocation.getYaw() + (float) yamlConfiguration.getDouble("animation.floatingRotationSpeed"));
         }
-        newLocation.setY(constHeight + (Math.sin((float) x * 0.2) * 0.3));
+        newLocation.setY(constHeight + (Math.sin((float) x * yamlConfiguration.getDouble("animation.floatingSpeed")) * yamlConfiguration.getDouble("animation.floatingAmplitude")));
         floatingChest.teleport(newLocation);
     }
 
     public void endEvent() {
-        if(main.plugin.eventManager.isPlayerChallenging(challenger)) main.plugin.eventManager.removePlayerAsChallenger(challenger);
+        if (main.plugin.eventManager.isPlayerChallenging(challenger))
+            main.plugin.eventManager.removePlayerAsChallenger(challenger);
         clearStructures();
         floatingChest.remove();
         eventTask.cancel();

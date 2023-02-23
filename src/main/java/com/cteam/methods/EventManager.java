@@ -1,24 +1,18 @@
 package com.cteam.methods;
 
+import com.cteam.TreasureRarity;
 import com.cteam.events.EventStage;
 import com.cteam.main;
-import com.cteam.tasks.TreasureEventTask;
 import com.cteam.yamls.Config;
-import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
-import org.bukkit.Sound;
 import org.bukkit.block.Block;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
-import org.bukkit.entity.Zombie;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.loot.LootTables;
-import org.bukkit.potion.PotionEffect;
-import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.Vector;
@@ -65,10 +59,9 @@ public class EventManager {
         ArrayList<Block> cellsBars = event.getCageBlocks();
         int xSize = vector.getBlockX();
         int zSize = vector.getBlockZ();
-        int ySize = vector.getBlockZ();
         for(int x=-xSize; x <= xSize; x++) {
             for(int z=-zSize;z <=zSize;z++) {
-                for(int y=-10;y < ySize;y++) {
+                for(int y=-10;y < 256;y++) {
                     Block block = new Location(challenger.getWorld(),challenger.getLocation().getBlockX()+x,challenger.getLocation().getBlockY()+y,challenger.getLocation().getBlockZ()+z).getBlock();
                     protectedBlocks.add(block);
                     cellsBars.add(block);
@@ -81,11 +74,11 @@ public class EventManager {
 
 
     ArmorStand spawnArmorStand(Player challenger) {
-        Location armorStandLocation = challenger.getLocation();
+        Location armorStandLocation = challenger.getLocation().getBlock().getLocation();
         ArmorStand armorStand = challenger.getWorld().spawn(armorStandLocation, ArmorStand.class);
 
-        Config config = new Config();
-        ItemStack skull = Utils.getCustomSkull(config.getConfigYAML().getString("notAbleToLoot"));
+        YamlConfiguration yamlConfiguration = new Config().getConfigYAML();
+        ItemStack skull = Utils.getCustomSkull(yamlConfiguration.getString("skins.notAbleToLoot"));
         armorStand.setSmall(true);
         armorStand.setGravity(false);
         armorStand.getEquipment().setHelmet(skull);
@@ -97,13 +90,15 @@ public class EventManager {
 
 
 
-    public void startEvent(Player challenger) {
+    public void startEvent(Player challenger, TreasureRarity rarity) {
         if(isPlayerChallenging(challenger)) return;
         ArmorStand armorStand = spawnArmorStand(challenger);
-        TreasureEvent treasureEvent = new TreasureEvent(challenger,armorStand, 5);
-        Vector cageSize = new Vector(10,10,10);
-        buildCage(treasureEvent,cageSize);
         YamlConfiguration yamlConfiguration = new Config().getConfigYAML();
+        TreasureEvent treasureEvent = new TreasureEvent(challenger,armorStand, 5);
+        treasureEvent.setTreasureRarity(rarity);
+        Vector cageSize = new Vector(yamlConfiguration.getInt("challenges."+rarity.name().toLowerCase()+".cageSize"),10,yamlConfiguration.getInt("challenges."+rarity.name().toLowerCase()+".cageSize"));
+        treasureEvent.setMaxHorde(yamlConfiguration.getInt("challenges."+rarity.name().toLowerCase()+".cageSize"));
+        buildCage(treasureEvent,cageSize);
 
 
         BukkitTask event  = new BukkitRunnable() {
@@ -113,13 +108,13 @@ public class EventManager {
 
             @Override
             public void run() {
-                String hordeText = yamlConfiguration.getString("hordeCountText").replace("{current_horde}",String.valueOf(treasureEvent.getCurrentHorde())).replace("{max_horde}",String.valueOf(treasureEvent.getMaxHorde()));
+                String hordeText = yamlConfiguration.getString("displayText.hordeCountText").replace("{current_horde}",String.valueOf(treasureEvent.getCurrentHorde())).replace("{max_horde}",String.valueOf(treasureEvent.getMaxHorde()));
                if(armorStand.getCustomName() != hordeText && treasureEvent.getEventPhase() == EventStage.STARTED) armorStand.setCustomName(hordeText);
                if(treasureEvent.getEventPhase() == EventStage.WAITING) {
                    if(treasureEvent.currentHorde == 0) {
-                       treasureEvent.getFloatingChest().setCustomName(yamlConfiguration.getString("startingChallengeText").replace("{seconds_until_horde}",String.valueOf(treasureEvent.secondsUntilNextHorde)));
+                       treasureEvent.getFloatingChest().setCustomName(yamlConfiguration.getString("displayText.startingChallengeText").replace("{seconds_until_horde}",String.valueOf(treasureEvent.secondsUntilNextHorde)));
                    } else {
-                       treasureEvent.getFloatingChest().setCustomName(yamlConfiguration.getString("nextHordeText").replace("{seconds_until_horde}", String.valueOf(treasureEvent.secondsUntilNextHorde)));
+                       treasureEvent.getFloatingChest().setCustomName(yamlConfiguration.getString("displayText.nextHordeText").replace("{seconds_until_horde}", String.valueOf(treasureEvent.secondsUntilNextHorde)));
                    }
                }
                 if(!Utils.checkIfHordeAlive(treasureEvent.getEnemies())  && treasureEvent.getEventPhase() == EventStage.STARTED) {

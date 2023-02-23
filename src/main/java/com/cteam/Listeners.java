@@ -1,5 +1,6 @@
 package com.cteam;
 
+import com.cteam.methods.TreasureEvent;
 import com.cteam.yamls.Config;
 import com.sun.tools.javac.jvm.Items;
 import org.bukkit.ChatColor;
@@ -34,18 +35,20 @@ public class Listeners implements Listener {
         if(interactedBook.getType() != Material.WRITTEN_BOOK) return;
         if(!interactedBook.getItemMeta().getDisplayName().equalsIgnoreCase("Treasure Book")) return;
         PersistentDataContainer dataHolder =interactedBook.getItemMeta().getPersistentDataContainer();
-        NamespacedKey treasurePluginSpaceKey = new NamespacedKey(main.plugin, "TREASUREBOOKS");
+        NamespacedKey treasurePluginSpaceKey = new NamespacedKey(main.plugin, "TreasureBookCoordinates");
         int[] cords = dataHolder.get(treasurePluginSpaceKey, PersistentDataType.INTEGER_ARRAY);
+        NamespacedKey treasurePluginRaritySpaceKey = new NamespacedKey(main.plugin, "TreasureBookRarity");
+        TreasureRarity rarity = TreasureRarity.valueOf(dataHolder.get(treasurePluginRaritySpaceKey, PersistentDataType.STRING));
         int X = cords[0];
-        int Y = cords[1];
-        int Z = cords[2];
+        int Z = cords[1];
         p.sendMessage(Arrays.toString(cords));
+        p.sendMessage(rarity.name());
         if(p.getLocation().getBlockX() != X && p.getLocation().getBlockZ() != Z) return;
         if(main.plugin.eventManager.isPlayerChallenging(p)) {
-            p.sendMessage("\n"+ ChatColor.RED +"You are already doing a challenge \n ");
+            p.sendMessage();
             return;
         }
-            main.plugin.eventManager.startEvent(p);
+            main.plugin.eventManager.startEvent(p, rarity);
             p.getInventory().setItem(e.getHand(), new ItemStack(Material.AIR));
 
 
@@ -69,13 +72,17 @@ public class Listeners implements Listener {
         Player p = e.getPlayer();
         Entity entity = e.getRightClicked();
         YamlConfiguration yamlConfiguration = new Config().getConfigYAML();
-        if(entity.getCustomName().equalsIgnoreCase(yamlConfiguration.getString("challengeWinChestName"))) {
-            if(main.plugin.eventManager.isPlayerChallenging(p)) main.plugin.eventManager.getTreasureEvent(p).startEndingPhase();
-            p.getInventory().addItem(new ItemStack(Material.DIAMOND));
-            p.playSound(p.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP,1f,1f);
-            p.sendMessage("hmmm Diamonds...");
-            entity.remove();
+        if(!entity.getCustomName().equalsIgnoreCase(yamlConfiguration.getString("displayText.challengeWinChestName")))  return;
+        if(main.plugin.eventManager.isPlayerChallenging(p)) {
+        TreasureEvent treasureEvent = main.plugin.eventManager.getTreasureEvent(p);
+
+        p.openInventory(treasureEvent.getLootInventory());
+        treasureEvent.startEndingPhase();
         }
+
+
+        entity.remove();
+
     }
 
 

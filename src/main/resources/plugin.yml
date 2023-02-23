@@ -5,6 +5,4 @@ api-version: 1.19
 authors: [ amoreira2003 ]
 commands:
   test:
-  killent:
   cancel:
-  stage:
